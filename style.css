@@ -1,0 +1,14 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+.centered {
+  display: flex;
+  height: 800px;
+  margin: auto auto;
+}
+
+#canvas {
+  margin: auto;
+}
