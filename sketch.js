@@ -29,41 +29,50 @@ function setup() {
   iw = img.width;
   ih = img.height;
 
-  image(img, 0, 0);
-  image(img, iw, 0);
-  image(img, 0, ih);
-  image(img, iw, ih);
+  console.log(pixels);
 
-  loadPixels();
   console.log(img);
 
-  for (let y = 0; y < ih; y++) {
-    for (let x = 0; x < iw; x++) {
-      patterns.push(get(x, y, N, N));
+  for (let y = 0; y < ih / 2; y++) {
+    for (let x = 0; x < iw / 2; x++) {
+
+      for (let r = 0; r < 4; r++) {
+        push();
+        imageMode(CENTER);
+        translate(iw / 2, ih / 2);
+        rotate(HALF_PI * r);
+        image(img, 0, 0);
+        pop();
+        patterns.push(get(x, y, N, N));
+      }
     }
   }
 
 
 
 
-  let j = 24;
-  let i = 23;
-  // console.log(compatible(patterns[i], patterns[j], 0));
-  // console.log(equalPattern(patterns[i], patterns[j]))
+
+
+
 
 
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
   for (let i = 0; i < patterns.length; i++) {
-    patterns[i].loadPixels();
-    fill(patterns[i].pixels[0], patterns[i].pixels[1], patterns[i].pixels[2],
-      patterns[i].pixels[3])
-    rect(i * 10, 0, 10, 10);
-    image(patterns[i], i * 5, 10, 5, 5);
+    // patterns[i].loadPixels();
+    // fill(patterns[i].pixels[0], patterns[i].pixels[1], patterns[i].pixels[2],
+    //   patterns[i].pixels[3])
+    // rect(i * 10, 0, 10, 10);
+    image(patterns[i], 10, i * 5, 5, 5);
   }
 
-  image(patterns[j], 0, 30, 10, 10);
-  image(patterns[i], 20, 30, 10, 10);
+  //
+  // let i = 63;
+  // let j = 62;
+  // console.log(compatible(patterns[i], patterns[j], 2));
+  // console.log(equalPattern(patterns[i], patterns[j]))
+  // image(patterns[j], 0, 30, 10, 10);
+  // image(patterns[i], 20, 30, 10, 10);
 
 }
 
@@ -91,11 +100,12 @@ function equalPattern(p1, p2) {
 // Takes two 3*3 image patterns and returns true if they are compatible along the given direction with p1 as reference point
 function compatible(p1, p2, dir) {
 
+  // since each pixel takes up 4 indices (RGBA), the indices for each pixel in a 3*3 image are multiples of 4. The overlapping model then requires the comparison of 2 rows (north, south) or two columns (west, east)
   faces = [
-    [0, 12, 24], //west
-    [0, 4, 8], //north
-    [8, 20, 32], //east
-    [24, 28, 32] //south
+    [0, 12, 24, 4, 16, 28], //west
+    [0, 4, 8, 12, 16, 20], //north
+    [8, 20, 32, 4, 16, 28], //east
+    [24, 28, 32, 12, 16, 20] //south
   ];
 
   p1.loadPixels();
@@ -103,7 +113,7 @@ function compatible(p1, p2, dir) {
   p2.loadPixels();
   pix2 = p2.pixels;
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 6; i++) {
     for (let r = 0; r < 4; r++) {
       if (pix1[faces[dir][i] + r] !=
         pix2[faces[(dir + 2) % 4][i] + r]) {
