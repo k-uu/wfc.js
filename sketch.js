@@ -4,6 +4,7 @@ const ZIMA = [22, 184, 243];
 
 const N = 3;
 let patterns = [];
+let pset = [];
 let A = {};
 let W = {};
 let H = {};
@@ -29,41 +30,79 @@ function setup() {
   iw = img.width;
   ih = img.height;
 
-  image(img, 0, 0);
-  image(img, iw, 0);
-  image(img, 0, ih);
-  image(img, iw, ih);
+  for (let y = 0; y < ih / 2; y++) {
+    for (let x = 0; x < iw / 2; x++) {
 
-  loadPixels();
-  console.log(img);
+      for (let r = 0; r < 4; r++) {
 
-  for (let y = 0; y < ih; y++) {
-    for (let x = 0; x < iw; x++) {
-      patterns.push(get(x, y, N, N));
+        // rotation 90
+        push();
+        imageMode(CENTER);
+        translate(iw / 2, ih / 2);
+        rotate(HALF_PI * r);
+        image(img, 0, 0);
+        pop();
+        patterns.push(get(x, y, N, N)); //convert pixels to string
+
+        // flip on horizontal axis
+        push();
+        imageMode(CENTER);
+        translate(iw / 2, ih / 2);
+        scale(1, -1);
+        image(img, 0, 0);
+        pop();
+        patterns.push(get(x, y, N, N));
+
+        // flip on vertical axis
+        push();
+        imageMode(CENTER);
+        translate(iw / 2, ih / 2);
+        scale(-1, 1);
+        image(img, 0, 0);
+        pop();
+        patterns.push(get(x, y, N, N));
+      }
     }
   }
 
-
-
-
-  let j = 24;
-  let i = 23;
-  // console.log(compatible(patterns[i], patterns[j], 0));
-  // console.log(equalPattern(patterns[i], patterns[j]))
+  // extract pixels from each pattern and concat them into string with '_' as separator so that Set can compare values.
+  pset = [...new Set(patterns.map(p => {
+    p.loadPixels();
+    return p.pixels.join('_');
+  }))];
 
 
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
-  for (let i = 0; i < patterns.length; i++) {
-    patterns[i].loadPixels();
-    fill(patterns[i].pixels[0], patterns[i].pixels[1], patterns[i].pixels[2],
-      patterns[i].pixels[3])
-    rect(i * 10, 0, 10, 10);
-    image(patterns[i], i * 5, 10, 5, 5);
-  }
 
-  image(patterns[j], 0, 30, 10, 10);
-  image(patterns[i], 20, 30, 10, 10);
+  let c = 0;
+  for (let i = 0; i < pset.length; i++) {
+    for (let j = i + 1; j < pset.length; j++) {
+      if (compatible(pset[i], pset[j], 3)) {
+        let img1 = createImage(3, 3);
+        img1.loadPixels();
+        let g = pset[i].split('_').map(p => parseInt(p));
+        for (let k = 0; k < 36; k++) {
+          img1.pixels[k] = g[k];
+        }
+        img1.updatePixels();
+        image(img1, c += 11, 30, 10, 10);
+
+        let img2 = createImage(3, 3);
+        img2.loadPixels();
+        let r = pset[j].split('_').map(p => parseInt(p));
+        for (let k = 0; k < 36; k++) {
+          img2.pixels[k] = r[k];
+        }
+        img2.updatePixels();
+        image(img2, c += 11, 30, 10, 10);
+      }
+    }
+  }
+  // for (let i = 0; i < patterns.length; i++) {
+  //   image(patterns[i], 10, i * 5, 5, 5);
+  // }
+
 
 }
 
@@ -71,42 +110,33 @@ function draw() {
   // background(51);
 }
 
-// Returns true if the two image patterns are identical
+// Returns true if the two patterns are identical
 function equalPattern(p1, p2) {
-  p1.loadPixels();
-  pix1 = p1.pixels;
-  p2.loadPixels();
-  pix2 = p2.pixels;
-
-  for (let i = 0; i < pix1.length; i += 4) {
-    for (let r = 0; r < 4; r++) {
-      if (pix1[i + r] != pix2[i + r]) {
-        return false;
-      }
-    }
-  }
-  return true;
+  return p1 === p2;
 }
 
-// Takes two 3*3 image patterns and returns true if they are compatible along the given direction with p1 as reference point
+// Takes two 3*3 patterns and returns true if they are compatible along the given direction with p1 as reference point
 function compatible(p1, p2, dir) {
 
+  // since each pixel takes up 4 indices (RGBA), the indices for each pixel in a 3*3 image are multiples of 4. The overlapping model then requires the comparison of 2 rows (north, south) or two columns (west, east)
   faces = [
-    [0, 12, 24], //west
-    [0, 4, 8], //north
-    [8, 20, 32], //east
-    [24, 28, 32] //south
+    [0, 12, 24, 4, 16, 28], //west
+    [0, 4, 8, 12, 16, 20], //north
+    [4, 16, 28, 8, 20, 32], //east
+    [12, 16, 20, 24, 28, 32] //south
   ];
 
-  p1.loadPixels();
-  pix1 = p1.pixels;
-  p2.loadPixels();
-  pix2 = p2.pixels;
+  // take string of pixels and turn back into array
+  p1 = p1.split('_').map(p => parseInt(p));
+  p2 = p2.split('_').map(p => parseInt(p));
 
-  for (let i = 0; i < 3; i++) {
+  let f0 = faces[dir];
+
+  let f1 = faces[(dir + 2) % 4];
+
+  for (let i = 0; i < 6; i++) {
     for (let r = 0; r < 4; r++) {
-      if (pix1[faces[dir][i] + r] !=
-        pix2[faces[(dir + 2) % 4][i] + r]) {
+      if (p1[f0[i] + r] !== p2[f1[i] + r]) {
         return false;
       }
     }
