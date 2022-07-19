@@ -2,12 +2,11 @@ const ZIMA = [22, 184, 243];
 
 const ROWS = 50;
 const COLMS = 50;
-const FACTOR = 9;
-const WIDTH = COLMS * FACTOR;
-const HEIGHT = ROWS * FACTOR;
-
 const N = 3;
-let patterns = [];
+const AREA = N * N;
+const WIDTH = COLMS * AREA;
+const HEIGHT = ROWS * AREA;
+
 let pset = [];
 let W = new Map();
 let A = new Map();
@@ -33,6 +32,8 @@ function setup() {
 
   iw = img.width;
   ih = img.height;
+
+  let patterns = [];
 
   for (let y = 0; y < ih / 2; y++) {
     for (let x = 0; x < iw / 2; x++) {
@@ -112,41 +113,39 @@ function setup() {
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
 
-
-
-  //test overlapping
-  let c = 0;
-  for (let i = 0; i < pset.length; i++) {
-    for (let j = i + 1; j < pset.length; j++) {
-      if (compatible(pset[i], pset[j], 3)) {
-        let img1 = createImage(3, 3);
-        img1.loadPixels();
-        let g = pset[i].split('_').map(p => parseInt(p));
-        for (let k = 0; k < 36; k++) {
-          img1.pixels[k] = g[k];
-        }
-        img1.updatePixels();
-        image(img1, c += 11, 30, 10, 10);
-
-        let img2 = createImage(3, 3);
-        img2.loadPixels();
-        let r = pset[j].split('_').map(p => parseInt(p));
-        for (let k = 0; k < 36; k++) {
-          img2.pixels[k] = r[k];
-        }
-        img2.updatePixels();
-        image(img2, c += 11, 30, 10, 10);
-      }
-    }
-  }
+  // //test overlapping
+  // let c = 0;
+  // for (let i = 0; i < pset.length; i++) {
+  //   for (let j = i + 1; j < pset.length; j++) {
+  //     if (compatible(pset[i], pset[j], 3)) {
+  //       let img1 = createImage(3, 3);
+  //       img1.loadPixels();
+  //       let g = pset[i].split('_').map(p => parseInt(p));
+  //       for (let k = 0; k < 36; k++) {
+  //         img1.pixels[k] = g[k];
+  //       }
+  //       img1.updatePixels();
+  //       image(img1, c += 11, 30, 10, 10);
+  //
+  //       let img2 = createImage(3, 3);
+  //       img2.loadPixels();
+  //       let r = pset[j].split('_').map(p => parseInt(p));
+  //       for (let k = 0; k < 36; k++) {
+  //         img2.pixels[k] = r[k];
+  //       }
+  //       img2.updatePixels();
+  //       image(img2, c += 11, 30, 10, 10);
+  //     }
+  //   }
+  // }
 
 }
 
 function draw() {
-  // background(51);
-  // if (H.size == 0) {
-  //   noLoop();
-  // }
+  if (!H.size) {
+    noLoop();
+    return;
+  }
   //  Select index that corresponds to cell with least entropy
   let hMinIdx = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev)[0];
   // Pick a random tile to collapse to
@@ -172,18 +171,28 @@ function draw() {
         for (const pat of Array.from(W.get(curr))) {
           A.get(pat)[d].forEach(p => possible.add(p));
         }
-        console.log(possible);
+
+        let available = W.get(neighbor);
+
+        // update cell if there are more available tiles than possible
+        if (isSuperset(available, possible)) {
+          let intersect = intersection(available, possible);
+
+          if (!intersect.size) {
+            console.log("Contradiction")
+            noLoop();
+            return;
+          }
+          W.set(neighbor, intersect);
+          H.set(neighbor, intersect.size + random(0.1));
+          stack.push(neighbor);
+        }
       }
     }
   }
-  noLoop();
-
-
-}
-
-// Returns true if the two patterns are identical
-function equalPattern(p1, p2) {
-  return p1 === p2;
+  let color = pset[patCollapsed].split('_').map(p => parseInt(p));
+  fill(color[0], color[1], color[2]);
+  rect((hMinIdx % ROWS) * AREA, (Math.floor(hMinIdx / ROWS)) * AREA, AREA, AREA);
 }
 
 // Takes two 3*3 patterns and returns true if they are compatible along the given direction with p1 as reference point
