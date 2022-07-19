@@ -1,13 +1,17 @@
-const WIDTH = 600;
-const HEIGHT = 600;
 const ZIMA = [22, 184, 243];
+
+const ROWS = 50;
+const COLMS = 50;
+const FACTOR = 9;
+const WIDTH = COLMS * FACTOR;
+const HEIGHT = ROWS * FACTOR;
 
 const N = 3;
 let patterns = [];
 let pset = [];
-let A = {};
-let W = {};
-let H = {};
+let W = new Map();
+let A = new Map();
+let H = new Map();
 let img;
 let iw;
 let ih;
@@ -71,10 +75,46 @@ function setup() {
     return p.pixels.join('_');
   }))];
 
+  let npat = pset.length;
+
+
+  for (let i = 0; i < ROWS * COLMS; i++) {
+    W.set(i, new Set([...Array(npat).keys()]));
+    H.set(i, npat);
+  }
+
+  // set starting point by reducing its entropy
+  let startIdx = random([...Array(ROWS * COLMS).keys()]);
+  H.set(startIdx, npat - 1);
+
+
+  for (let i = 0; i < npat; i++) {
+    let pdir = []
+    for (let d = 0; d < 4; d++) {
+      pdir.push(new Set());
+    }
+    A.set(i, pdir);
+  }
+
+
+  // compare patterns to populate adjacency rules
+  for (let i = 0; i < npat; i++) {
+    for (let j = i + 1; j < npat; j++) {
+      for (let dir = 0; dir < 4; dir++) {
+        if (compatible(pset[i], pset[j], dir)) {
+          A.get(i)[dir].add(j);
+          A.get(j)[(dir + 2) % 4].add(i);
+        }
+      }
+    }
+  }
 
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
 
+
+
+  //test overlapping
   let c = 0;
   for (let i = 0; i < pset.length; i++) {
     for (let j = i + 1; j < pset.length; j++) {
@@ -99,15 +139,46 @@ function setup() {
       }
     }
   }
-  // for (let i = 0; i < patterns.length; i++) {
-  //   image(patterns[i], 10, i * 5, 5, 5);
-  // }
-
 
 }
 
 function draw() {
   // background(51);
+  // if (H.size == 0) {
+  //   noLoop();
+  // }
+  //  Select index that corresponds to cell with least entropy
+  let hMinIdx = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev)[0];
+  // Pick a random tile to collapse to
+  let patCollapsed = random(Array.from(W.get(hMinIdx)));
+  W.set(hMinIdx, new Set([patCollapsed]))
+  H.delete(hMinIdx);
+
+  let stack = [hMinIdx];
+  // propagation
+  while (stack.length) {
+
+    let curr = stack.pop();
+    for (const [d, [dx, dy]] of dir.entries()) {
+      let x = (curr % ROWS + dx) % ROWS;
+      let y = (curr / ROWS + dy) % COLMS;
+      let neighbor = x + y * ROWS;
+
+      if (H.has(neighbor)) {
+
+        // get possible neighboring tiles in the direction adjacent to curr cell
+        let possible = new Set();
+
+        for (const pat of Array.from(W.get(curr))) {
+          A.get(pat)[d].forEach(p => possible.add(p));
+        }
+        console.log(possible);
+      }
+    }
+  }
+  noLoop();
+
+
 }
 
 // Returns true if the two patterns are identical
