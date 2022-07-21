@@ -1,13 +1,14 @@
 const ZIMA = [22, 184, 243];
 
-const ROWS = 50;
-const COLMS = 50;
+const ROWS = 45;
+const COLMS = 45;
 const N = 3;
 const AREA = N * N;
 const WIDTH = COLMS * AREA;
 const HEIGHT = ROWS * AREA;
 
 let pset = [];
+let counts = new Map();
 let W = new Map();
 let A = new Map();
 let H = new Map();
@@ -22,7 +23,7 @@ let dir = [
 ];
 
 function preload() {
-  img = loadImage('assets/flower.png');
+  img = loadImage('assets/island.png');
 }
 
 
@@ -70,14 +71,26 @@ function setup() {
     }
   }
 
-  // extract pixels from each pattern and concat them into string with '_' as separator so that Set can compare values.
-  pset = [...new Set(patterns.map(p => {
+  // determine frequencies of patterns
+  patterns.map(p => {
     p.loadPixels();
     return p.pixels.join('_');
-  }))];
+  }).forEach(p => {
+    if (counts.has(p)) {
+      let newVal = counts.get(p) + 1;
+      counts.set(p, newVal);
+    } else {
+      counts.set(p, 1);
+    }
+  })
 
+  // unique patterns
+  pset = Array.from(counts.keys());
+  // associated pattern counts
+  counts = Array.from(counts.values());
+
+  // number of unique patterns
   let npat = pset.length;
-
 
   for (let i = 0; i < ROWS * COLMS; i++) {
     W.set(i, new Set([...Array(npat).keys()]));
@@ -114,62 +127,71 @@ function setup() {
   cnv.parent("canvas");
 
 
-  //test adjacency rules
-  let target = 8;
-  let arr = A.get(target);
-
-  let imgc = createImage(3, 3);
-  imgc.loadPixels();
-  let g = pset[target].split('_').map(p => parseInt(p));
-  for (let k = 0; k < 36; k++) {
-    imgc.pixels[k] = g[k];
-  }
-  imgc.updatePixels();
-  image(imgc, WIDTH / 2, HEIGHT / 2, 10, 10);
-
-  for (let d = 0; d < 4; d++) {
-    let c = 0;
-    for (let adj of Array.from(arr[d])) {
-      c++;
-      let img = createImage(3, 3);
-      img.loadPixels();
-      let g = pset[adj].split('_').map(p => parseInt(p));
-      for (let k = 0; k < 36; k++) {
-        img.pixels[k] = g[k];
-      }
-      img.updatePixels();
-      push()
-      translate(WIDTH / 2, HEIGHT / 2);
-      switch (d) {
-        case 0:
-          image(img, c * -11, 0, 10, 10);
-          break;
-        case 1:
-          image(img, 0, c * -11, 10, 10);
-          break;
-        case 2:
-          image(img, c * 11, 0, 10, 10);
-          break;
-        case 3:
-          image(img, 0, c * 11, 10, 10);
-          break;
-      }
-      pop();
-    }
-  }
-
-  // test patterns
-  console.log(npat);
-  for (let i = 0; i < npat; i++) {
-    let img = createImage(3, 3);
-    img.loadPixels();
-    let g = pset[i].split('_').map(p => parseInt(p));
-    for (let k = 0; k < 36; k++) {
-      img.pixels[k] = g[k];
-    }
-    img.updatePixels();
-    image(img, i * 11, 30, 10, 10);
-  }
+  // //test adjacency rules
+  // let target = 2;
+  // let arr = A.get(target);
+  //
+  // let imgc = createImage(3, 3);
+  // imgc.loadPixels();
+  // let g = pset[target].split('_').map(p => parseInt(p));
+  // for (let k = 0; k < 36; k++) {
+  //   imgc.pixels[k] = g[k];
+  // }
+  // imgc.updatePixels();
+  // image(imgc, WIDTH / 2, HEIGHT / 2, 10, 10);
+  //
+  // for (let d = 0; d < 4; d++) {
+  //   let c = 0;
+  //   for (let adj of Array.from(arr[d])) {
+  //     c++;
+  //     let img = createImage(3, 3);
+  //     img.loadPixels();
+  //     let g = pset[adj].split('_').map(p => parseInt(p));
+  //     for (let k = 0; k < 36; k++) {
+  //       img.pixels[k] = g[k];
+  //     }
+  //     img.updatePixels();
+  //     push()
+  //     stroke(0);
+  //     textSize(10);
+  //     translate(WIDTH / 2, HEIGHT / 2);
+  //     switch (d) {
+  //       case 0:
+  //         image(img, c * -11, 0, 10, 10);
+  //         c++
+  //         text(adj, c * -11, 0);
+  //         break;
+  //       case 1:
+  //         image(img, 0, c * -11, 10, 10);
+  //         c++
+  //         text(adj, 10, c * -11);
+  //         break;
+  //       case 2:
+  //         image(img, c * 11, 0, 10, 10);
+  //         c++
+  //         text(adj, c * 11, 0);
+  //         break;
+  //       case 3:
+  //         image(img, 0, c * 11, 10, 10);
+  //         c++
+  //         text(adj, 10, c * 11);
+  //         break;
+  //     }
+  //     pop();
+  //   }
+  // }
+  //
+  // // test patterns
+  // for (let i = 0; i < npat; i++) {
+  //   let img = createImage(3, 3);
+  //   img.loadPixels();
+  //   let g = pset[i].split('_').map(p => parseInt(p));
+  //   for (let k = 0; k < 36; k++) {
+  //     img.pixels[k] = g[k];
+  //   }
+  //   img.updatePixels();
+  //   image(img, i * 11, 30, 10, 10);
+  // }
 
 }
 
@@ -180,14 +202,15 @@ function draw() {
     return;
   }
   //  Select index that corresponds to cell with least entropy (TRY MAKING INTO HEAP)
-  let minima = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev);
-
-  let hMinIdx = minima[0];
+  let hMinIdx = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev)[0];
 
   // Pick a random tile to collapse to
-  let patCollapsed = random(Array.from(W.get(hMinIdx)));
+  let patCollapsed = randomTile(hMinIdx);
+  // let patCollapsed = random(Array.from(W.get(hMinIdx)));
   W.set(hMinIdx, new Set([patCollapsed]));
   H.delete(hMinIdx);
+
+  let col = random(1, 255);
 
   let stack = [hMinIdx];
   // propagation
@@ -198,6 +221,13 @@ function draw() {
       let x = (curr % ROWS + dx) % ROWS;
       let y = (Math.floor(curr / ROWS) + dy) % COLMS;
       let neighbor = x + y * ROWS;
+
+      push();
+      noFill();
+      stroke(col);
+      rect((curr % ROWS) * AREA, (Math.floor(curr / ROWS)) * AREA, AREA, AREA);
+      pop();
+
       // if the neighbor has not collapsed
       if (H.has(neighbor)) {
 
@@ -211,10 +241,10 @@ function draw() {
 
         let available = W.get(neighbor);
 
-        // update cell if there are more available tiles than possible
-        if (isSuperset(available, possible)) {
-          let intersect = intersection(possible, available);
 
+        // update cell if available tiles are not all in the possible tiles
+        if (!isSubset(available, possible)) {
+          let intersect = intersection(possible, available);
 
           if (!intersect.size) {
             console.log("Contradiction")
@@ -222,7 +252,7 @@ function draw() {
             return;
           }
           W.set(neighbor, intersect);
-          H.set(neighbor, intersect.size + random(0.1));
+          H.set(neighbor, intersect.size - random(0.1));
           stack.push(neighbor);
         }
       }
@@ -232,6 +262,22 @@ function draw() {
   fill(color[0], color[1], color[2]);
   rect((hMinIdx % ROWS) * AREA, (Math.floor(hMinIdx / ROWS)) * AREA, AREA, AREA);
 
+}
+
+// this could use caching instead of computing the sum every time
+function randomTile(idx) {
+  sumOfFreq = 0;
+  W.get(idx).forEach(p => sumOfFreq += counts[p]);
+  let pos = Math.floor(Math.random() * (sumOfFreq + 1));
+  for (const tileIdx of Array.from(W.get(idx))) {
+    let weight = counts[tileIdx];
+    if (pos > weight) {
+      pos -= weight;
+    } else {
+      return tileIdx;
+    }
+  }
+  console.log("inconsistent")
 }
 
 // Takes two 3*3 patterns and returns true if they are compatible along the given direction with p1 as reference point

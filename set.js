@@ -10,11 +10,12 @@ function intersection(setA, setB) {
   return _intersection;
 }
 
-function isSuperset(set, subset) {
-  for (const elem of subset) {
-    if (!set.has(elem)) {
+// returns true if setA is a subset of setB: are all elements of setA in setB?
+function isSubset(setA, setB) {
+  for (const elem of setA) {
+    if (!setB.has(elem)) {
       return false;
     }
   }
-  return set.size > subset.size;
+  return true;
 }
