@@ -22,7 +22,7 @@ let dir = [
 ];
 
 function preload() {
-  img = loadImage('assets/tree.png');
+  img = loadImage('assets/flower.png');
 }
 
 
@@ -40,7 +40,7 @@ function setup() {
 
       for (let r = 0; r < 4; r++) {
 
-        // rotation 90
+        // rotation 90 degrees
         push();
         imageMode(CENTER);
         translate(iw / 2, ih / 2);
@@ -113,44 +113,80 @@ function setup() {
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
 
-  // //test overlapping
-  // let c = 0;
-  // for (let i = 0; i < pset.length; i++) {
-  //   for (let j = i + 1; j < pset.length; j++) {
-  //     if (compatible(pset[i], pset[j], 3)) {
-  //       let img1 = createImage(3, 3);
-  //       img1.loadPixels();
-  //       let g = pset[i].split('_').map(p => parseInt(p));
-  //       for (let k = 0; k < 36; k++) {
-  //         img1.pixels[k] = g[k];
-  //       }
-  //       img1.updatePixels();
-  //       image(img1, c += 11, 30, 10, 10);
-  //
-  //       let img2 = createImage(3, 3);
-  //       img2.loadPixels();
-  //       let r = pset[j].split('_').map(p => parseInt(p));
-  //       for (let k = 0; k < 36; k++) {
-  //         img2.pixels[k] = r[k];
-  //       }
-  //       img2.updatePixels();
-  //       image(img2, c += 11, 30, 10, 10);
-  //     }
-  //   }
-  // }
+
+  //test adjacency rules
+  let target = 8;
+  let arr = A.get(target);
+
+  let imgc = createImage(3, 3);
+  imgc.loadPixels();
+  let g = pset[target].split('_').map(p => parseInt(p));
+  for (let k = 0; k < 36; k++) {
+    imgc.pixels[k] = g[k];
+  }
+  imgc.updatePixels();
+  image(imgc, WIDTH / 2, HEIGHT / 2, 10, 10);
+
+  for (let d = 0; d < 4; d++) {
+    let c = 0;
+    for (let adj of Array.from(arr[d])) {
+      c++;
+      let img = createImage(3, 3);
+      img.loadPixels();
+      let g = pset[adj].split('_').map(p => parseInt(p));
+      for (let k = 0; k < 36; k++) {
+        img.pixels[k] = g[k];
+      }
+      img.updatePixels();
+      push()
+      translate(WIDTH / 2, HEIGHT / 2);
+      switch (d) {
+        case 0:
+          image(img, c * -11, 0, 10, 10);
+          break;
+        case 1:
+          image(img, 0, c * -11, 10, 10);
+          break;
+        case 2:
+          image(img, c * 11, 0, 10, 10);
+          break;
+        case 3:
+          image(img, 0, c * 11, 10, 10);
+          break;
+      }
+      pop();
+    }
+  }
+
+  // test patterns
+  console.log(npat);
+  for (let i = 0; i < npat; i++) {
+    let img = createImage(3, 3);
+    img.loadPixels();
+    let g = pset[i].split('_').map(p => parseInt(p));
+    for (let k = 0; k < 36; k++) {
+      img.pixels[k] = g[k];
+    }
+    img.updatePixels();
+    image(img, i * 11, 30, 10, 10);
+  }
 
 }
 
 function draw() {
+  // noLoop();
   if (!H.size) {
     noLoop();
     return;
   }
-  //  Select index that corresponds to cell with least entropy
-  let hMinIdx = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev)[0];
+  //  Select index that corresponds to cell with least entropy (TRY MAKING INTO HEAP)
+  let minima = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev);
+
+  let hMinIdx = minima[0];
+
   // Pick a random tile to collapse to
   let patCollapsed = random(Array.from(W.get(hMinIdx)));
-  W.set(hMinIdx, new Set([patCollapsed]))
+  W.set(hMinIdx, new Set([patCollapsed]));
   H.delete(hMinIdx);
 
   let stack = [hMinIdx];
@@ -160,9 +196,9 @@ function draw() {
     let curr = stack.pop();
     for (const [d, [dx, dy]] of dir.entries()) {
       let x = (curr % ROWS + dx) % ROWS;
-      let y = (curr / ROWS + dy) % COLMS;
+      let y = (Math.floor(curr / ROWS) + dy) % COLMS;
       let neighbor = x + y * ROWS;
-
+      // if the neighbor has not collapsed
       if (H.has(neighbor)) {
 
         // get possible neighboring tiles in the direction adjacent to curr cell
@@ -172,11 +208,13 @@ function draw() {
           A.get(pat)[d].forEach(p => possible.add(p));
         }
 
+
         let available = W.get(neighbor);
 
         // update cell if there are more available tiles than possible
         if (isSuperset(available, possible)) {
-          let intersect = intersection(available, possible);
+          let intersect = intersection(possible, available);
+
 
           if (!intersect.size) {
             console.log("Contradiction")
@@ -193,6 +231,7 @@ function draw() {
   let color = pset[patCollapsed].split('_').map(p => parseInt(p));
   fill(color[0], color[1], color[2]);
   rect((hMinIdx % ROWS) * AREA, (Math.floor(hMinIdx / ROWS)) * AREA, AREA, AREA);
+
 }
 
 // Takes two 3*3 patterns and returns true if they are compatible along the given direction with p1 as reference point
