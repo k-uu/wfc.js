@@ -1,26 +1,36 @@
-const ZIMA = [22, 184, 243];
-
-const ROWS = 45;
-const COLMS = 45;
+const ROWS = 40;
+const COLMS = 40;
 const N = 3;
 const AREA = N * N;
 const WIDTH = COLMS * AREA;
 const HEIGHT = ROWS * AREA;
 
-let pset = [];
-let counts = new Map();
-let W = new Map();
-let A = new Map();
-let H = new Map();
+let pset;
+let counts;
+let W;
+let A;
+let H;
+let weightSum;
+let logWeightSum;
+
 let img;
 let iw;
 let ih;
 let dir = [
   [-1, 0], //west
-  [0, -1], //north
   [1, 0], //east
+  [0, -1], //north
   [0, 1] //south
 ];
+
+function start() {
+  pset = [];
+  counts = new Map();
+  W = new Map();
+  A = new Map();
+  weightSum = new Map();
+  logWeightSum = [];
+}
 
 function preload() {
   img = loadImage('assets/island.png');
@@ -30,6 +40,7 @@ function preload() {
 function setup() {
   noStroke();
   pixelDensity(1);
+  start();
 
   iw = img.width;
   ih = img.height;
@@ -94,12 +105,13 @@ function setup() {
 
   for (let i = 0; i < ROWS * COLMS; i++) {
     W.set(i, new Set([...Array(npat).keys()]));
-    H.set(i, npat);
+    weightSum.set(i, counts.reduce((sum, weight) => sum += weight, 0));
+    logWeightSum.push(counts.reduce((sum, weight) => sum += weight * Math.log(weight), 0));
   }
 
   // set starting point by reducing its entropy
   let startIdx = random([...Array(ROWS * COLMS).keys()]);
-  H.set(startIdx, npat - 1);
+  weightSum.set(startIdx, 1);
 
 
   for (let i = 0; i < npat; i++) {
@@ -117,7 +129,11 @@ function setup() {
       for (let dir = 0; dir < 4; dir++) {
         if (compatible(pset[i], pset[j], dir)) {
           A.get(i)[dir].add(j);
-          A.get(j)[(dir + 2) % 4].add(i);
+          let opposite = (dir + 1) % 2;
+          if (dir > 1) {
+            opposite += 2;
+          }
+          A.get(j)[opposite].add(i);
         }
       }
     }
@@ -128,7 +144,7 @@ function setup() {
 
 
   // //test adjacency rules
-  // let target = 2;
+  // let target = 9;
   // let arr = A.get(target);
   //
   // let imgc = createImage(3, 3);
@@ -161,12 +177,12 @@ function setup() {
   //         c++
   //         text(adj, c * -11, 0);
   //         break;
-  //       case 1:
+  //       case 2:
   //         image(img, 0, c * -11, 10, 10);
   //         c++
   //         text(adj, 10, c * -11);
   //         break;
-  //       case 2:
+  //       case 1:
   //         image(img, c * 11, 0, 10, 10);
   //         c++
   //         text(adj, c * 11, 0);
@@ -196,21 +212,31 @@ function setup() {
 }
 
 function draw() {
-  // noLoop();
-  if (!H.size) {
+  if (!weightSum.size) {
     noLoop();
     return;
   }
   //  Select index that corresponds to cell with least entropy (TRY MAKING INTO HEAP)
-  let hMinIdx = [...H.entries()].reduce((prev, curr) => curr[1] < prev[1] ? curr : prev)[0];
+
+  let hMinIdx = -1;
+  let hMin = Number.MAX_VALUE;
+
+  weightSum.forEach((wSum, idx) => {
+    let hCurr = Math.log(wSum) - logWeightSum[idx] / wSum;
+    let noise = random(0.1);
+    hCurr -= noise;
+    if (hCurr < hMin) {
+      hMin = hCurr;
+      hMinIdx = idx;
+    }
+  });
 
   // Pick a random tile to collapse to
   let patCollapsed = randomTile(hMinIdx);
   // let patCollapsed = random(Array.from(W.get(hMinIdx)));
   W.set(hMinIdx, new Set([patCollapsed]));
-  H.delete(hMinIdx);
+  weightSum.delete(hMinIdx);
 
-  let col = random(1, 255);
 
   let stack = [hMinIdx];
   // propagation
@@ -220,16 +246,23 @@ function draw() {
     for (const [d, [dx, dy]] of dir.entries()) {
       let x = (curr % ROWS + dx) % ROWS;
       let y = (Math.floor(curr / ROWS) + dy) % COLMS;
+      if (y < 0) {
+        y += COLMS;
+      }
+      if (x < 0) {
+        x += ROWS;
+      }
       let neighbor = x + y * ROWS;
 
       push();
-      noFill();
-      stroke(col);
+      let H = Math.log(weightSum.get(curr)) - logWeightSum[curr] / weightSum.get(curr);
+
+      fill(map(H, 0, 6, 255, 100), 255, 0);
       rect((curr % ROWS) * AREA, (Math.floor(curr / ROWS)) * AREA, AREA, AREA);
       pop();
 
       // if the neighbor has not collapsed
-      if (H.has(neighbor)) {
+      if (weightSum.has(neighbor)) {
 
         // get possible neighboring tiles in the direction adjacent to curr cell
         let possible = new Set();
@@ -245,14 +278,21 @@ function draw() {
         // update cell if available tiles are not all in the possible tiles
         if (!isSubset(available, possible)) {
           let intersect = intersection(possible, available);
+          let diff = difference(available, intersect);
 
           if (!intersect.size) {
-            console.log("Contradiction")
-            noLoop();
+            setup();
             return;
           }
+
+          diff.forEach(i => {
+            let weight = counts[i];
+            let prevWeight = weightSum.get(neighbor);
+            weightSum.set(neighbor, prevWeight - weight);
+            logWeightSum[neighbor] -= weight * Math.log(weight);
+          });
+
           W.set(neighbor, intersect);
-          H.set(neighbor, intersect.size - random(0.1));
           stack.push(neighbor);
         }
       }
@@ -261,13 +301,11 @@ function draw() {
   let color = pset[patCollapsed].split('_').map(p => parseInt(p));
   fill(color[0], color[1], color[2]);
   rect((hMinIdx % ROWS) * AREA, (Math.floor(hMinIdx / ROWS)) * AREA, AREA, AREA);
-
 }
 
 // this could use caching instead of computing the sum every time
 function randomTile(idx) {
-  sumOfFreq = 0;
-  W.get(idx).forEach(p => sumOfFreq += counts[p]);
+  sumOfFreq = weightSum.get(idx);
   let pos = Math.floor(Math.random() * (sumOfFreq + 1));
   for (const tileIdx of Array.from(W.get(idx))) {
     let weight = counts[tileIdx];
@@ -286,8 +324,8 @@ function compatible(p1, p2, dir) {
   // since each pixel takes up 4 indices (RGBA), the indices for each pixel in a 3*3 image are multiples of 4. The overlapping model then requires the comparison of 2 rows (north, south) or two columns (west, east)
   faces = [
     [0, 12, 24, 4, 16, 28], //west
-    [0, 4, 8, 12, 16, 20], //north
     [4, 16, 28, 8, 20, 32], //east
+    [0, 4, 8, 12, 16, 20], //north
     [12, 16, 20, 24, 28, 32] //south
   ];
 
@@ -297,7 +335,11 @@ function compatible(p1, p2, dir) {
 
   let f0 = faces[dir];
 
-  let f1 = faces[(dir + 2) % 4];
+  let opposite = (dir + 1) % 2;
+  if (dir > 1) {
+    opposite += 2;
+  }
+  let f1 = faces[opposite];
 
   for (let i = 0; i < 6; i++) {
     for (let r = 0; r < 4; r++) {
