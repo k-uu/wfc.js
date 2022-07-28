@@ -5,10 +5,15 @@
 
 .centered {
   display: flex;
-  height: 800px;
-  margin: auto auto;
+  margin: 50px auto;
 }
 
 #canvas {
+  margin: auto;
+}
+
+#bitmap {
+  width: 36px;
+  height: 36px;
   margin: auto;
 }

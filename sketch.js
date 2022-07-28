@@ -1,5 +1,5 @@
-const ROWS = 40;
-const COLMS = 40;
+const ROWS = 20;
+const COLMS = 20;
 const N = 3;
 const AREA = N * N;
 const WIDTH = COLMS * AREA;
@@ -33,11 +33,12 @@ function start() {
 }
 
 function preload() {
-  img = loadImage('assets/island.png');
+  img = loadImage('assets/wave.png');
 }
 
 
 function setup() {
+  frameRate(120);
   noStroke();
   pixelDensity(1);
   start();
@@ -49,9 +50,7 @@ function setup() {
 
   for (let y = 0; y < ih / 2; y++) {
     for (let x = 0; x < iw / 2; x++) {
-
       for (let r = 0; r < 4; r++) {
-
         // rotation 90 degrees
         push();
         imageMode(CENTER);
@@ -65,6 +64,7 @@ function setup() {
         push();
         imageMode(CENTER);
         translate(iw / 2, ih / 2);
+        rotate(HALF_PI * r);
         scale(1, -1);
         image(img, 0, 0);
         pop();
@@ -74,6 +74,7 @@ function setup() {
         push();
         imageMode(CENTER);
         translate(iw / 2, ih / 2);
+        rotate(HALF_PI * r);
         scale(-1, 1);
         image(img, 0, 0);
         pop();
@@ -143,75 +144,95 @@ function setup() {
   cnv.parent("canvas");
 
 
-  // //test adjacency rules
-  // let target = 9;
-  // let arr = A.get(target);
-  //
-  // let imgc = createImage(3, 3);
-  // imgc.loadPixels();
-  // let g = pset[target].split('_').map(p => parseInt(p));
-  // for (let k = 0; k < 36; k++) {
-  //   imgc.pixels[k] = g[k];
-  // }
-  // imgc.updatePixels();
-  // image(imgc, WIDTH / 2, HEIGHT / 2, 10, 10);
-  //
-  // for (let d = 0; d < 4; d++) {
-  //   let c = 0;
-  //   for (let adj of Array.from(arr[d])) {
-  //     c++;
-  //     let img = createImage(3, 3);
-  //     img.loadPixels();
-  //     let g = pset[adj].split('_').map(p => parseInt(p));
-  //     for (let k = 0; k < 36; k++) {
-  //       img.pixels[k] = g[k];
-  //     }
-  //     img.updatePixels();
-  //     push()
-  //     stroke(0);
-  //     textSize(10);
-  //     translate(WIDTH / 2, HEIGHT / 2);
-  //     switch (d) {
-  //       case 0:
-  //         image(img, c * -11, 0, 10, 10);
-  //         c++
-  //         text(adj, c * -11, 0);
-  //         break;
-  //       case 2:
-  //         image(img, 0, c * -11, 10, 10);
-  //         c++
-  //         text(adj, 10, c * -11);
-  //         break;
-  //       case 1:
-  //         image(img, c * 11, 0, 10, 10);
-  //         c++
-  //         text(adj, c * 11, 0);
-  //         break;
-  //       case 3:
-  //         image(img, 0, c * 11, 10, 10);
-  //         c++
-  //         text(adj, 10, c * 11);
-  //         break;
-  //     }
-  //     pop();
-  //   }
-  // }
-  //
-  // // test patterns
-  // for (let i = 0; i < npat; i++) {
-  //   let img = createImage(3, 3);
-  //   img.loadPixels();
-  //   let g = pset[i].split('_').map(p => parseInt(p));
-  //   for (let k = 0; k < 36; k++) {
-  //     img.pixels[k] = g[k];
-  //   }
-  //   img.updatePixels();
-  //   image(img, i * 11, 30, 10, 10);
-  // }
+  function testAdjacencyRules(target) {
+    let arr = A.get(target);
+
+    let imgc = createImage(3, 3);
+    imgc.loadPixels();
+    let g = pset[target].split('_').map(p => parseInt(p));
+    for (let k = 0; k < 36; k++) {
+      imgc.pixels[k] = g[k];
+    }
+    imgc.updatePixels();
+    image(imgc, WIDTH / 2, HEIGHT / 2, 10, 10);
+
+    for (let d = 0; d < 4; d++) {
+      let c = 0;
+      for (let adj of Array.from(arr[d])) {
+        c++;
+        let img = createImage(3, 3);
+        img.loadPixels();
+        let g = pset[adj].split('_').map(p => parseInt(p));
+        for (let k = 0; k < 36; k++) {
+          img.pixels[k] = g[k];
+        }
+        img.updatePixels();
+        push();
+        stroke(0);
+        textSize(10);
+        translate(WIDTH / 2, HEIGHT / 2);
+        switch (d) {
+          case 0:
+            image(img, c * -11, 0, 10, 10);
+            c++
+            text(adj, c * -11, 0);
+            break;
+          case 2:
+            image(img, 0, c * -11, 10, 10);
+            c++
+            text(adj, 10, c * -11);
+            break;
+          case 1:
+            image(img, c * 11, 0, 10, 10);
+            c++
+            text(adj, c * 11, 0);
+            break;
+          case 3:
+            image(img, 0, c * 11, 10, 10);
+            c++
+            text(adj, 10, c * 11);
+            break;
+        }
+        pop();
+      }
+    }
+  }
+
+  // test patterns
+  function testPatterns() {
+    let r = 0;
+    let c = 0
+    for (let i = 0; i < npat; i++) {
+      let img = createImage(3, 3);
+      img.loadPixels();
+      let g = pset[i].split('_').map(p => parseInt(p));
+      for (let k = 0; k < 36; k++) {
+        img.pixels[k] = g[k];
+      }
+      img.updatePixels();
+      push();
+      stroke(0);
+      textSize(10);
+      image(img, c += 30, 30 + r, 10, 10);
+      text(i + "," + counts[i], c, r + 30);
+      pop();
+      if (c > WIDTH - 40) {
+        c = 0;
+        r += 20;
+      }
+    }
+  }
+
+  // testPatterns();
+  // testAdjacencyRules(33);
+
+
+
 
 }
 
 function draw() {
+  // return;
   if (!weightSum.size) {
     noLoop();
     return;
@@ -223,7 +244,7 @@ function draw() {
 
   weightSum.forEach((wSum, idx) => {
     let hCurr = Math.log(wSum) - logWeightSum[idx] / wSum;
-    let noise = random(0.1);
+    let noise = Math.random() / 100;
     hCurr -= noise;
     if (hCurr < hMin) {
       hMin = hCurr;
@@ -281,7 +302,7 @@ function draw() {
           let diff = difference(available, intersect);
 
           if (!intersect.size) {
-            setup();
+            location.reload();
             return;
           }
 
