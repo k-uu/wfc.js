@@ -1,17 +1,26 @@
-const ROWS = 20;
-const COLMS = 20;
+const ROWS = 50;
+const COLMS = 50;
 const N = 3;
 const AREA = N * N;
 const WIDTH = COLMS * AREA;
 const HEIGHT = ROWS * AREA;
+const MAX_ITERATIONS = 50;
 
 let pset;
 let counts;
 let W;
+let WInit
 let A;
-let H;
-let weightSum;
-let logWeightSum;
+let weightSumInit;
+let weightSum
+let logWeightSumInit;
+
+let output;
+let step = 0;
+let iteration_count;
+
+
+
 
 let img;
 let iw;
@@ -24,24 +33,30 @@ let dir = [
 ];
 
 function start() {
-  pset = [];
-  counts = new Map();
-  W = new Map();
-  A = new Map();
-  weightSum = new Map();
-  logWeightSum = [];
+  W = new Map(WInit);
+  weightSum = new Map(weightSumInit);
+  logWeightSum = [...logWeightSumInit];
+  output = [];
+
+  // set starting point by reducing its entropy
+  let startIdx = random([...Array(ROWS * COLMS).keys()]);
+  weightSum.set(startIdx, 1);
 }
 
 function preload() {
-  img = loadImage('assets/wave.png');
+  img = loadImage('assets/rooms.png');
 }
-
 
 function setup() {
   frameRate(120);
   noStroke();
   pixelDensity(1);
-  start();
+  pset = [];
+  counts = new Map();
+  WInit = new Map();
+  A = new Map();
+  weightSumInit = new Map();
+  logWeightSumInit = [];
 
   iw = img.width;
   ih = img.height;
@@ -82,8 +97,10 @@ function setup() {
       }
     }
   }
+  patterns[0].loadPixels();
+  console.log(Array.from(patterns[0].pixels), rotateCW90(Array.from(patterns[0].pixels)));
 
-  // determine frequencies of patterns
+  // determine frequencies of unique patterns
   patterns.map(p => {
     p.loadPixels();
     return p.pixels.join('_');
@@ -105,14 +122,11 @@ function setup() {
   let npat = pset.length;
 
   for (let i = 0; i < ROWS * COLMS; i++) {
-    W.set(i, new Set([...Array(npat).keys()]));
-    weightSum.set(i, counts.reduce((sum, weight) => sum += weight, 0));
-    logWeightSum.push(counts.reduce((sum, weight) => sum += weight * Math.log(weight), 0));
+    WInit.set(i, new Set([...Array(npat).keys()]));
+    weightSumInit.set(i, counts.reduce((sum, weight) => sum += weight, 0));
+    logWeightSumInit.push(counts.reduce((sum, weight) => sum += weight * Math.log(weight), 0));
   }
 
-  // set starting point by reducing its entropy
-  let startIdx = random([...Array(ROWS * COLMS).keys()]);
-  weightSum.set(startIdx, 1);
 
 
   for (let i = 0; i < npat; i++) {
@@ -142,6 +156,8 @@ function setup() {
 
   let cnv = createCanvas(WIDTH, HEIGHT);
   cnv.parent("canvas");
+
+  start();
 
 
   function testAdjacencyRules(target) {
@@ -224,104 +240,121 @@ function setup() {
   }
 
   // testPatterns();
-  // testAdjacencyRules(33);
+  // testAdjacencyRules(0);
+
+  function testIterations() {
+    let iter = 0
+
+    iteration:
+      while (iter < MAX_ITERATIONS) {
+        start();
+
+        while (weightSum.size) {
+
+          let hMinIdx = -1;
+          let hMin = Number.MAX_VALUE;
+
+          weightSum.forEach((wSum, idx) => {
+            hCurr = Math.log(wSum) - logWeightSum[idx] / wSum;
+            if (hCurr < hMin) {
+              hMin = hCurr;
+              hMinIdx = idx;
+            }
+          });
+
+          // Pick a random tile to collapse to
+          let patCollapsed = randomTile(hMinIdx);
+          let alreadyCollapsed = W.get(hMinIdx).size == 1;
+          W.set(hMinIdx, new Set([patCollapsed]));
+          weightSum.delete(hMinIdx);
+
+          if (!alreadyCollapsed) {
+
+            let stack = [hMinIdx];
+            // propagation
+            while (stack.length) {
+
+              let curr = stack.pop();
+              for (const [d, [dx, dy]] of dir.entries()) {
+                let x = (curr % ROWS + dx) % ROWS;
+                let y = (Math.floor(curr / ROWS) + dy) % COLMS;
+                if (y < 0) {
+                  y += COLMS;
+                }
+                if (x < 0) {
+                  x += ROWS;
+                }
+                let neighbor = x + y * ROWS;
+
+                // if the neighbor has not collapsed
+                if (weightSum.has(neighbor)) {
+
+                  // get possible neighboring tiles in the direction adjacent to curr cell
+                  let possible = new Set();
+
+                  for (const pat of Array.from(W.get(curr))) {
+                    A.get(pat)[d].forEach(p => possible.add(p));
+                  }
 
 
+                  let available = W.get(neighbor);
 
+
+                  // update cell if available tiles are not all in the possible tiles
+                  if (!isSubset(available, possible)) {
+                    let intersect = intersection(possible, available);
+                    let diff = difference(available, intersect);
+
+                    if (!intersect.size) {
+                      iter++
+                      console.log("+")
+                      document.getElementById("count").innerHTML = iter;
+                      continue iteration;
+                    }
+
+                    diff.forEach(i => {
+                      let weight = counts[i];
+                      let prevWeight = weightSum.get(neighbor);
+                      weightSum.set(neighbor, prevWeight - weight);
+                      logWeightSum[neighbor] -= weight * Math.log(weight);
+                    });
+
+                    W.set(neighbor, intersect);
+                    stack.push(neighbor);
+                  }
+                }
+              }
+            }
+          }
+          let color = pset[patCollapsed].split('_').map(p => parseInt(p));
+          output.push({
+            i: hMinIdx,
+            c: color.splice(0, 3)
+          });
+        }
+        return iter;
+      }
+    output = [];
+    return -1;
+  }
+
+  iteration_count = testIterations()
 
 }
 
 function draw() {
-  // return;
-  if (!weightSum.size) {
+
+  if (step == output.length) {
     noLoop();
     return;
   }
-  //  Select index that corresponds to cell with least entropy (TRY MAKING INTO HEAP)
 
-  let hMinIdx = -1;
-  let hMin = Number.MAX_VALUE;
-
-  weightSum.forEach((wSum, idx) => {
-    let hCurr = Math.log(wSum) - logWeightSum[idx] / wSum;
-    let noise = Math.random() / 100;
-    hCurr -= noise;
-    if (hCurr < hMin) {
-      hMin = hCurr;
-      hMinIdx = idx;
-    }
-  });
-
-  // Pick a random tile to collapse to
-  let patCollapsed = randomTile(hMinIdx);
-  // let patCollapsed = random(Array.from(W.get(hMinIdx)));
-  W.set(hMinIdx, new Set([patCollapsed]));
-  weightSum.delete(hMinIdx);
-
-
-  let stack = [hMinIdx];
-  // propagation
-  while (stack.length) {
-
-    let curr = stack.pop();
-    for (const [d, [dx, dy]] of dir.entries()) {
-      let x = (curr % ROWS + dx) % ROWS;
-      let y = (Math.floor(curr / ROWS) + dy) % COLMS;
-      if (y < 0) {
-        y += COLMS;
-      }
-      if (x < 0) {
-        x += ROWS;
-      }
-      let neighbor = x + y * ROWS;
-
-      push();
-      let H = Math.log(weightSum.get(curr)) - logWeightSum[curr] / weightSum.get(curr);
-
-      fill(map(H, 0, 6, 255, 100), 255, 0);
-      rect((curr % ROWS) * AREA, (Math.floor(curr / ROWS)) * AREA, AREA, AREA);
-      pop();
-
-      // if the neighbor has not collapsed
-      if (weightSum.has(neighbor)) {
-
-        // get possible neighboring tiles in the direction adjacent to curr cell
-        let possible = new Set();
-
-        for (const pat of Array.from(W.get(curr))) {
-          A.get(pat)[d].forEach(p => possible.add(p));
-        }
-
-
-        let available = W.get(neighbor);
-
-
-        // update cell if available tiles are not all in the possible tiles
-        if (!isSubset(available, possible)) {
-          let intersect = intersection(possible, available);
-          let diff = difference(available, intersect);
-
-          if (!intersect.size) {
-            location.reload();
-            return;
-          }
-
-          diff.forEach(i => {
-            let weight = counts[i];
-            let prevWeight = weightSum.get(neighbor);
-            weightSum.set(neighbor, prevWeight - weight);
-            logWeightSum[neighbor] -= weight * Math.log(weight);
-          });
-
-          W.set(neighbor, intersect);
-          stack.push(neighbor);
-        }
-      }
-    }
-  }
-  let color = pset[patCollapsed].split('_').map(p => parseInt(p));
+  let color = output[step].c;
+  let idx = output[step].i;
   fill(color[0], color[1], color[2]);
-  rect((hMinIdx % ROWS) * AREA, (Math.floor(hMinIdx / ROWS)) * AREA, AREA, AREA);
+  rect((idx % ROWS) * AREA, (Math.floor(idx / ROWS)) * AREA, AREA, AREA);
+  step++;
+
 }
 
 // this could use caching instead of computing the sum every time

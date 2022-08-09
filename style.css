@@ -12,6 +12,10 @@
   margin: auto;
 }
 
+#count {
+  margin: auto;
+}
+
 #bitmap {
   width: 36px;
   height: 36px;
